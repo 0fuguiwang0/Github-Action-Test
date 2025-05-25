@@ -1,59 +1,115 @@
-name: CI Workflow  # 定义工作流的名称
+name: PR Build & Deploy
 
+# 只在任何 PR 打开/更新时触发
 on:
-  pull_request:  # 触发条件为 Pull Request
-    branches:
-      - main  # 仅在对 main 分支的 Pull Request 时触发
+  pull_request:
 
 jobs:
-  build:  # 定义一个名为 build 的作业
-    runs-on: ubuntu-latest  # 在最新的 Ubuntu 环境中运行
+  # 一、Build Job：拉代码→npm build→打镜像→push Registry
+  build:
+    name: 🔨 Build & Push Image
+    runs-on: ubuntu-latest
+    # PR 一合并就跑，先跑 Build 再跑下面的 Deploy
+    steps:
+      - name: Checkout 源码
+        uses: actions/checkout@v4
 
-    steps:  # 定义该作业中的一系列步骤
-      - name: Checkout code  # 步骤名称
-        uses: actions/checkout@v2  # 使用 GitHub Actions 提供的 checkout 动作来检出代码
-
-      - name: Set up Node.js  # 设置 Node.js 环境
-        uses: actions/setup-node@v2  # 使用 Node.js 设置动作
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: '16'  # 指定 Node.js 版本为 16
+          node-version: "18"
 
-      - name: Install dependencies  # 安装项目依赖
-        run: npm install  # 运行 npm install 命令
+      - name: 安装 & 打包
+        run: |
+          npm ci
+          npm run build
 
-      - name: Run tests  # 运行测试
-        run: npm test -- --watchAll=false  # 执行测试，避免持续监听模式
+      - name: 登录镜像仓库
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ secrets.DOCKER_REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build project  # 构建项目
-        run: npm run build  # 运行构建命令
+      - name: 构建并推送镜像
+        id: build_image
+        run: |
+          IMAGE=${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:${{ github.sha }}
+          docker build -t $IMAGE .
+          docker push $IMAGE
+          # 将镜像地址传给后续 Job
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
-  deploy:  # 定义一个名为 deploy 的作业
-    runs-on: ubuntu-latest  # 在最新的 Ubuntu 环境中运行
-    needs: build  # 该作业依赖于 build 作业的成功完成
-    if: github.event.pull_request.merged == true  # 仅当 Pull Request 被合并时才执行
-    environment: production  # 指定要部署的环境
+    # 暴露 build.job 的输出
+    outputs:
+      image: ${{ steps.build_image.outputs.image }}
 
-    steps:  # 定义该作业中的步骤
-      - name: Checkout code  # 再次检出代码
-        uses: actions/checkout@v2  # 使用同样的 checkout 动作
+  # 二、Deploy 到 dev
+  deploy-dev:
+    name: 🚀 Deploy to Dev
+    needs: build
+    runs-on: ubuntu-latest
+    # 只有当 PR 目标分支是 dev 时才触发
+    if: ${{ github.event.pull_request.base.ref == 'dev' }}
+    # 关联 GitHub Environment (自动拉 dev 里的 Secrets、走审批)
+    environment: dev
+    steps:
+      - name: SSH & 部署 Dev
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            IMAGE=${{ needs.build.outputs.image }}
+            cd /path/to/dev-deploy-dir
+            # 停掉／删掉旧容器
+            docker-compose down || true
+            # 更新 compose 文件（可选）
+            # git pull origin dev
+            # 拉最新镜像并起
+            docker pull $IMAGE
+            IMAGE=$IMAGE docker-compose up -d --build
 
-      - name: Deploy to Cloud  # 云端部署步骤
-        env:  # 定义环境变量
-          ENVIRONMENT: ${{ github.event.deployment.environment }}  # 从环境中获取环境变量
-          DOCKER_USERNAME: ${{ secrets[github.event.deployment.environment + '_DOCKER_USERNAME'] }}  # 根据环境选择 Docker 用户名
-          DOCKER_PASSWORD: ${{ secrets[github.event.deployment.environment + '_DOCKER_PASSWORD'] }}  # 根据环境选择 Docker 密码
-        run: |  # 运行多行命令
-          echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin  # 登录 Docker
-          docker build -t my-app:$ENVIRONMENT .  # 构建 Docker 镜像
-          docker push my-app:$ENVIRONMENT  # 推送镜像到 Docker Hub
+  # 三、Deploy 到 uat
+  deploy-uat:
+    name: 🚀 Deploy to UAT
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ github.event.pull_request.base.ref == 'uat' }}
+    environment: uat
+    steps:
+      - name: SSH & 部署 UAT
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            IMAGE=${{ needs.build.outputs.image }}
+            cd /path/to/uat-deploy-dir
+            docker-compose down || true
+            docker pull $IMAGE
+            IMAGE=$IMAGE docker-compose up -d --build
 
-      - name: SSH to server and pull image  # SSH 到服务器并拉取镜像
-        env:  # 定义环境变量
-          SSH_PRIVATE_KEY: ${{ secrets[github.event.deployment.environment + '_SSH_PRIVATE_KEY'] }}  # 根据环境选择 SSH 私钥
-          SERVER_IP: ${{ secrets[github.event.deployment.environment + '_SERVER_IP'] }}  # 根据环境选择服务器 IP 地址
-          ENVIRONMENT: ${{ github.event.deployment.environment }}  # 从环境中获取环境变量
-        run: |  # 运行多行命令
-          mkdir -p ~/.ssh  # 创建 SSH 目录
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa  # 将私钥写入文件
-          chmod 600 ~/.ssh/id_rsa  # 设置私钥文件权限
-          ssh -o StrictHostKeyChecking=no user@$SERVER_IP "docker pull my-app:$ENVIRONMENT && docker-compose up -d"  # SSH 连接并拉取镜像，启动服务
+  # 四、Deploy 到 prod
+  deploy-prod:
+    name: 🚀 Deploy to Prod
+    needs: build
+    runs-on: ubuntu-latest
+    # 假设主分支 main 用于 prod
+    if: ${{ github.event.pull_request.base.ref == 'main' }}
+    environment: prod
+    steps:
+      - name: SSH & 部署 Prod
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            IMAGE=${{ needs.build.outputs.image }}
+            cd /path/to/prod-deploy-dir
+            docker-compose down || true
+            docker pull $IMAGE
+            IMAGE=$IMAGE docker-compose up -d --build
