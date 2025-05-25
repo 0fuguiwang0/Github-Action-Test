@@ -1,26 +1,38 @@
 <template>
-  <img alt="Vue logo" src="./assets/logo.png">
-  <HelloWorld msg="Welcome to Your Vue.js App"/>
+  <div id="app">
+    <header>
+      <h1>欢迎来到我的 Vue 应用</h1>
+    </header>
+    <main>
+      <p>这是一个简单的页面示例。</p>
+      <button @click="showMessage">点击我</button>
+      <p v-if="message">{{ message }}</p>
+    </main>
+  </div>
 </template>
 
 <script>
-import HelloWorld from './components/HelloWorld.vue'
-
 export default {
-  name: 'App',
-  components: {
-    HelloWorld
+  data() {
+    return {
+      message: ''
+    };
+  },
+  methods: {
+    showMessage() {
+      this.message = '你点击了按钮！';
+    }
   }
-}
+};
 </script>
 
 <style>
 #app {
-  font-family: Avenir, Helvetica, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   text-align: center;
-  color: #2c3e50;
-  margin-top: 60px;
+  margin-top: 50px;
+}
+button {
+  padding: 10px 20px;
+  font-size: 16px;
 }
 </style>
