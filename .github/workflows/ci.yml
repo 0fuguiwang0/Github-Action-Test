@@ -62,14 +62,12 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             IMAGE=${{ needs.build.outputs.image }}
-            cd /path/to/dev-deploy-dir
-            # 停掉／删掉旧容器
-            docker-compose down || true
-            # 更新 compose 文件（可选）
-            # git pull origin dev
-            # 拉最新镜像并起
             docker pull $IMAGE
-            IMAGE=$IMAGE docker-compose up -d --build
+            # 先停止并删除旧容器（容器名自己改）
+            docker stop my-frontend || true
+            docker rm my-frontend || true
+            # 运行新容器，映射端口80
+            docker run -d --name my-frontend -p 80:80 $IMAGE
 
   # 三、Deploy 到 uat
   deploy-uat:
@@ -82,15 +80,15 @@ jobs:
       - name: SSH & 部署 UAT
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.SSH_HOST_UAT }}
+          username: ${{ secrets.SSH_USER_UAT }}
+          key: ${{ secrets.SSH_KEY_UAT }}
           script: |
             IMAGE=${{ needs.build.outputs.image }}
-            cd /path/to/uat-deploy-dir
-            docker-compose down || true
             docker pull $IMAGE
-            IMAGE=$IMAGE docker-compose up -d --build
+            docker stop my-frontend || true
+            docker rm my-frontend || true
+            docker run -d --name my-frontend -p 80:80 $IMAGE
 
   # 四、Deploy 到 prod
   deploy-prod:
@@ -104,12 +102,12 @@ jobs:
       - name: SSH & 部署 Prod
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.SSH_HOST_PROD }}
+          username: ${{ secrets.SSH_USER_PROD }}
+          key: ${{ secrets.SSH_KEY_PROD }}
           script: |
             IMAGE=${{ needs.build.outputs.image }}
-            cd /path/to/prod-deploy-dir
-            docker-compose down || true
             docker pull $IMAGE
-            IMAGE=$IMAGE docker-compose up -d --build
+            docker stop my-frontend || true
+            docker rm my-frontend || true
+            docker run -d --name my-frontend -p 80:80 $IMAGE
