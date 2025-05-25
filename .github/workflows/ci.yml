@@ -5,6 +5,7 @@ on:
 
 jobs:
   job1:
+    runs-on: ubuntu-latest   # 这一行必须加上
     outputs:
       output_name: ${{ steps.step_id.outputs.some_output }}
     steps:
@@ -13,6 +14,6 @@ jobs:
 
   job2:
     needs: job1
+    runs-on: ubuntu-latest   # 这一行也必须加上
     steps:
       - run: echo "${{ needs.job1.outputs.output_name }}"
-
