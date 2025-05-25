@@ -9,10 +9,9 @@ jobs:
     outputs:
       image_tag: ${{ steps.build_image.outputs.image_tag }}
     steps:
-      - name: Set Image Tag
-        id: build_image
-        run: |
-          echo "image_tag=my-registry.com/myapp:dev" >> $GITHUB_OUTPUT
+      - id: build_image
+        name: Set Image Tag
+        run: echo "image_tag=my-registry.com/myapp:dev" >> $GITHUB_OUTPUT
 
   test:
     needs: build
