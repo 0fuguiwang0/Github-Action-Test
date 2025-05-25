@@ -111,3 +111,4 @@ jobs:
             docker stop my-frontend || true
             docker rm my-frontend || true
             docker run -d --name my-frontend -p 80:80 $IMAGE
+            IMAGE=$IMAGE docker-compose up -d --build
