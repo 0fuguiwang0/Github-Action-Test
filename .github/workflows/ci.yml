@@ -9,6 +9,8 @@ jobs:
   build:
     name: 🔨 Build & Push Image
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.build_image.outputs.image_tag }}  # ✅ 指定输出来源
     steps:
       - name: Checkout 源码
         uses: actions/checkout@v4
@@ -31,7 +33,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: 构建并推送镜像
-        id: build_image
+        id: build_image  # ✅ 关键：加上 id 才能被 outputs 使用
         run: |
           TAG_NAME="${{ github.event.pull_request.base.ref }}"
           SHA_TAG="${{ github.sha }}"
@@ -45,11 +47,8 @@ jobs:
           echo "Pushing images..."
           docker push "$IMAGE_SHA"
           docker push "$IMAGE_TAG"
-          # 将镜像地址传给后续 Job
-          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-    # 暴露 build.job 的输出
-    outputs:
-      image_tag: ${{ steps.build_image.outputs.image_tag }}
+
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT  # ✅ 正确传输出口
 
   deploy-dev:
     name: 🚀 Deploy to Dev
@@ -108,7 +107,7 @@ jobs:
       - name: SSH & 部署 Prod
         uses: appleboy/ssh-action@v0.1.7
         env:
-          IMAGE: ${{ needs.build.outputs.image_tag }}  # 👈 把变量显式传进去
+          IMAGE: ${{ needs.build.outputs.image_tag }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
@@ -120,4 +119,3 @@ jobs:
             docker stop my-frontend || true
             docker rm my-frontend || true
             docker run -d --name my-frontend -p 8081:8081 $IMAGE
-            IMAGE=$IMAGE docker-compose up -d --build
