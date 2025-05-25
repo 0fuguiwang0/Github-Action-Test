@@ -120,6 +120,12 @@
 #             docker rm my-frontend || true
 #             docker run -d --name my-frontend -p 8081:8081 $IMAGE
 
+name: PR Build & Deploy
+
+# 只在任何 PR 打开/更新时触发
+on:
+  pull_request:
+
 jobs:
   build:
     runs-on: ubuntu-latest
