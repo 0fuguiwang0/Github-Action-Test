@@ -5,111 +5,19 @@ on:
   pull_request:
 
 jobs:
-  # 一、Build Job：拉代码→npm build→打镜像→push Registry
   build:
-    name: 🔨 Build & Push Image
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout 源码
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "18"
-
-      - name: 安装 & 打包
-        run: |
-          npm ci
-          npm run build
-
-      - name: 登录镜像仓库
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ secrets.DOCKER_REGISTRY }}
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: 构建并推送镜像
+      - name: Set Image Tag
         id: build_image
         run: |
-          IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:${{ github.sha }}"
-          echo "Building Docker image: $IMAGE"
-          docker build -t "$IMAGE" .
-          docker push "$IMAGE"
-          # 将镜像地址传给后续 Job
-          echo "image=$IMAGE" >> $GITHUB_OUTPUT
-
-    # 暴露 build.job 的输出
+          echo "image_tag=my-registry.com/myapp:dev" >> $GITHUB_OUTPUT
     outputs:
-      image: ${{ steps.build_image.outputs.image }}
+      image_tag: ${{ steps.build_image.outputs.image_tag }}
 
-  # 二、Deploy 到 dev
-  deploy-dev:
-    name: 🚀 Deploy to Dev
+  test:
     needs: build
     runs-on: ubuntu-latest
-    # 只有当 PR 目标分支是 dev 时才触发
-    if: ${{ github.event.pull_request.base.ref == 'dev' }}
-    # 关联 GitHub Environment (自动拉 dev 里的 Secrets、走审批)
-    environment: dev
     steps:
-      - name: SSH & 部署 Dev
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            IMAGE=${{ needs.build.outputs.image }}
-            cd /path/to/dev-deploy-dir
-            # 停掉／删掉旧容器
-            docker-compose down || true
-            # 更新 compose 文件（可选）
-            # git pull origin dev
-            # 拉最新镜像并起
-            docker pull $IMAGE
-            IMAGE=$IMAGE docker-compose up -d --build
-
-  # 三、Deploy 到 uat
-  deploy-uat:
-    name: 🚀 Deploy to UAT
-    needs: build
-    runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.base.ref == 'uat' }}
-    environment: uat
-    steps:
-      - name: SSH & 部署 UAT
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            IMAGE=${{ needs.build.outputs.image }}
-            cd /path/to/uat-deploy-dir
-            docker-compose down || true
-            docker pull $IMAGE
-            IMAGE=$IMAGE docker-compose up -d --build
-
-  # 四、Deploy 到 prod
-  deploy-prod:
-    name: 🚀 Deploy to Prod
-    needs: build
-    runs-on: ubuntu-latest
-    # 假设主分支 main 用于 prod
-    if: ${{ github.event.pull_request.base.ref == 'main' }}
-    environment: prod
-    steps:
-      - name: SSH & 部署 Prod
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            IMAGE=${{ needs.build.outputs.image }}
-            cd /path/to/prod-deploy-dir
-            docker-compose down || true
-            docker pull $IMAGE
-            IMAGE=$IMAGE docker-compose up -d --build
+      - name: Show Output
+        run: echo "Image is: ${{ needs.build.outputs.image_tag }}"
