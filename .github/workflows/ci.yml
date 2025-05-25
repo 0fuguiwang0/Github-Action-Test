@@ -9,6 +9,8 @@ jobs:
   build:
     name: 🔨 Build & Push Image
     runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.build_image.outputs.image }}
     steps:
       - name: Checkout 源码
         uses: actions/checkout@v4
@@ -67,7 +69,7 @@ jobs:
             docker stop my-frontend || true
             docker rm my-frontend || true
             # 运行新容器，映射端口80
-            docker run -d --name my-frontend -p 80:80 $IMAGE
+            docker run -d --name my-frontend -p 8083:8083 $IMAGE
 
   # 三、Deploy 到 uat
   deploy-uat:
@@ -88,7 +90,7 @@ jobs:
             docker pull $IMAGE
             docker stop my-frontend || true
             docker rm my-frontend || true
-            docker run -d --name my-frontend -p 80:80 $IMAGE
+            docker run -d --name my-frontend -p 8082:8082 $IMAGE
 
   # 四、Deploy 到 prod
   deploy-prod:
@@ -110,5 +112,5 @@ jobs:
             docker pull $IMAGE
             docker stop my-frontend || true
             docker rm my-frontend || true
-            docker run -d --name my-frontend -p 80:80 $IMAGE
+            docker run -d --name my-frontend -p 8081:8081 $IMAGE
             IMAGE=$IMAGE docker-compose up -d --build
