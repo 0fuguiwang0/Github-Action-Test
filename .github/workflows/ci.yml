@@ -9,8 +9,6 @@ jobs:
   build:
     name: 🔨 Build & Push Image
     runs-on: ubuntu-latest
-    outputs:
-      image: ${{ steps.build_image.outputs.image }}
     steps:
       - name: Checkout 源码
         uses: actions/checkout@v4
@@ -41,7 +39,6 @@ jobs:
           docker push "$IMAGE"
           # 将镜像地址传给后续 Job
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
-
     # 暴露 build.job 的输出
     outputs:
       image: ${{ steps.build_image.outputs.image }}
