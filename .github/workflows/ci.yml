@@ -9,7 +9,6 @@ jobs:
   build:
     name: 🔨 Build & Push Image
     runs-on: ubuntu-latest
-    # PR 一合并就跑，先跑 Build 再跑下面的 Deploy
     steps:
       - name: Checkout 源码
         uses: actions/checkout@v4
@@ -34,9 +33,10 @@ jobs:
       - name: 构建并推送镜像
         id: build_image
         run: |
-          IMAGE=${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:${{ github.sha }}
-          docker build -t $IMAGE .
-          docker push $IMAGE
+          IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:${{ github.sha }}"
+          echo "Building Docker image: $IMAGE"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
           # 将镜像地址传给后续 Job
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
 
