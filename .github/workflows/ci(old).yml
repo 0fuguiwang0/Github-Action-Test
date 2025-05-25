@@ -1,0 +1,111 @@
+# name: PR Build & Deploy
+
+# on:
+#   pull_request:
+
+# jobs:
+#   # 一、构建镜像
+#   build:
+#     name: 🔨 Build & Push Image
+#     runs-on: ubuntu-latest
+#     steps:
+#       - name: Checkout 源码
+#         uses: actions/checkout@v4
+
+#       - name: Setup Node.js
+#         uses: actions/setup-node@v3
+#         with:
+#           node-version: "18"
+
+#       - name: 安装依赖 & 打包
+#         run: |
+#           npm ci
+#           npm run build
+
+#       - name: 登录镜像仓库
+#         uses: docker/login-action@v2
+#         with:
+#           registry: ${{ secrets.DOCKER_REGISTRY }}
+#           username: ${{ secrets.DOCKER_USERNAME }}
+#           password: ${{ secrets.DOCKER_PASSWORD }}
+
+#       - name: 构建并推送镜像
+#         run: |
+#           TAG_NAME="${{ github.event.pull_request.base.ref }}"
+#           IMAGE_BASE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend"
+#           IMAGE_TAG="$IMAGE_BASE:$TAG_NAME"
+
+#           echo "Building Docker image: $IMAGE_TAG"
+#           docker build -t "$IMAGE_TAG" .
+
+#           echo "Pushing image..."
+#           docker push "$IMAGE_TAG"
+
+#   # 二、部署到 Dev
+#   deploy-dev:
+#     name: 🚀 Deploy to Dev
+#     needs: build
+#     runs-on: ubuntu-latest
+#     if: ${{ github.event.pull_request.base.ref == 'dev' }}
+#     environment: dev
+#     steps:
+#       - name: SSH & 部署 Dev
+#         uses: appleboy/ssh-action@v0.1.7
+#         with:
+#           host: ${{ secrets.SSH_HOST }}
+#           username: ${{ secrets.SSH_USER }}
+#           key: ${{ secrets.SSH_KEY }}
+#           script: |
+#             IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:dev"
+#             echo "Deploying Image: $IMAGE"
+#             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
+#             docker pull $IMAGE
+#             docker stop my-frontend || true
+#             docker rm my-frontend || true
+#             docker run -d --name my-frontend -p 8083:8083 $IMAGE
+
+#   # 三、部署到 UAT
+#   deploy-uat:
+#     name: 🚀 Deploy to UAT
+#     needs: build
+#     runs-on: ubuntu-latest
+#     if: ${{ github.event.pull_request.base.ref == 'uat' }}
+#     environment: uat
+#     steps:
+#       - name: SSH & 部署 UAT
+#         uses: appleboy/ssh-action@v0.1.7
+#         with:
+#           host: ${{ secrets.SSH_HOST }}
+#           username: ${{ secrets.SSH_USER }}
+#           key: ${{ secrets.SSH_KEY }}
+#           script: |
+#             IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:uat"
+#             echo "Deploying Image: $IMAGE"
+#             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
+#             docker pull $IMAGE
+#             docker stop my-frontend || true
+#             docker rm my-frontend || true
+#             docker run -d --name my-frontend -p 8082:8082 $IMAGE
+
+#   # 四、部署到 Prod
+#   deploy-prod:
+#     name: 🚀 Deploy to Prod
+#     needs: build
+#     runs-on: ubuntu-latest
+#     if: ${{ github.event.pull_request.base.ref == 'main' }}
+#     environment: prod
+#     steps:
+#       - name: SSH & 部署 Prod
+#         uses: appleboy/ssh-action@v0.1.7
+#         with:
+#           host: ${{ secrets.SSH_HOST }}
+#           username: ${{ secrets.SSH_USER }}
+#           key: ${{ secrets.SSH_KEY }}
+#           script: |
+#             IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:main"
+#             echo "Deploying Image: $IMAGE"
+#             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
+#             docker pull $IMAGE
+#             docker stop my-frontend || true
+#             docker rm my-frontend || true
+#             docker run -d --name my-frontend -p 8081:8081 $IMAGE

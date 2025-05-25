@@ -1,13 +1,25 @@
-name: PR Build & Deploy
+name: Manual Deploy
 
+# ✅ 手动触发
 on:
-  pull_request:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '选择部署环境'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - uat
+          - prod
 
 jobs:
-  # 一、构建镜像
   build:
     name: 🔨 Build & Push Image
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.set_output.outputs.image_tag }}
     steps:
       - name: Checkout 源码
         uses: actions/checkout@v4
@@ -31,81 +43,39 @@ jobs:
 
       - name: 构建并推送镜像
         run: |
-          TAG_NAME="${{ github.event.pull_request.base.ref }}"
-          IMAGE_BASE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend"
-          IMAGE_TAG="$IMAGE_BASE:$TAG_NAME"
+          ENV="${{ github.event.inputs.environment }}"
+          IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:$ENV"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE_TAG=$IMAGE" >> $GITHUB_ENV
 
-          echo "Building Docker image: $IMAGE_TAG"
-          docker build -t "$IMAGE_TAG" .
+      - name: 设置输出
+        id: set_output
+        run: echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-          echo "Pushing image..."
-          docker push "$IMAGE_TAG"
-
-  # 二、部署到 Dev
-  deploy-dev:
-    name: 🚀 Deploy to Dev
+  deploy:
+    name: 🚀 部署到指定环境
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.base.ref == 'dev' }}
-    environment: dev
+    environment: ${{ github.event.inputs.environment }}
     steps:
-      - name: SSH & 部署 Dev
+      - name: SSH & 部署
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:dev"
-            echo "Deploying Image: $IMAGE"
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
-            docker pull $IMAGE
-            docker stop my-frontend || true
-            docker rm my-frontend || true
-            docker run -d --name my-frontend -p 8083:8083 $IMAGE
+            ENV="${{ github.event.inputs.environment }}"
+            PORT="8081"
+            if [ "$ENV" = "uat" ]; then PORT="8082"; fi
+            if [ "$ENV" = "dev" ]; then PORT="8083"; fi
 
-  # 三、部署到 UAT
-  deploy-uat:
-    name: 🚀 Deploy to UAT
-    needs: build
-    runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.base.ref == 'uat' }}
-    environment: uat
-    steps:
-      - name: SSH & 部署 UAT
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:uat"
-            echo "Deploying Image: $IMAGE"
-            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
-            docker pull $IMAGE
-            docker stop my-frontend || true
-            docker rm my-frontend || true
-            docker run -d --name my-frontend -p 8082:8082 $IMAGE
+            IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:$ENV"
+            echo "Deploying $IMAGE to port $PORT"
 
-  # 四、部署到 Prod
-  deploy-prod:
-    name: 🚀 Deploy to Prod
-    needs: build
-    runs-on: ubuntu-latest
-    if: ${{ github.event.pull_request.base.ref == 'main' }}
-    environment: prod
-    steps:
-      - name: SSH & 部署 Prod
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:main"
-            echo "Deploying Image: $IMAGE"
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
             docker pull $IMAGE
             docker stop my-frontend || true
             docker rm my-frontend || true
-            docker run -d --name my-frontend -p 8081:8081 $IMAGE
+            docker run -d --name my-frontend -p ${PORT}:${PORT} $IMAGE
