@@ -39,9 +39,9 @@ jobs:
 
       - name: Deploy to Cloud  # 云端部署步骤
         env:  # 定义环境变量
-          ENVIRONMENT: ${{ github.event.deployment.environment }} # 从环境中获取环境变量
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}  # Docker 用户名
-          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}  # Docker 密码
+          ENVIRONMENT: ${{ github.event.deployment.environment }}  # 从环境中获取环境变量
+          DOCKER_USERNAME: ${{ secrets[github.event.deployment.environment + '_DOCKER_USERNAME'] }}  # 根据环境选择 Docker 用户名
+          DOCKER_PASSWORD: ${{ secrets[github.event.deployment.environment + '_DOCKER_PASSWORD'] }}  # 根据环境选择 Docker 密码
         run: |  # 运行多行命令
           echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin  # 登录 Docker
           docker build -t my-app:$ENVIRONMENT .  # 构建 Docker 镜像
@@ -49,8 +49,8 @@ jobs:
 
       - name: SSH to server and pull image  # SSH 到服务器并拉取镜像
         env:  # 定义环境变量
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}  # SSH 私钥
-          SERVER_IP: ${{ secrets.SERVER_IP }}  # 服务器 IP 地址
+          SSH_PRIVATE_KEY: ${{ secrets[github.event.deployment.environment + '_SSH_PRIVATE_KEY'] }}  # 根据环境选择 SSH 私钥
+          SERVER_IP: ${{ secrets[github.event.deployment.environment + '_SERVER_IP'] }}  # 根据环境选择服务器 IP 地址
           ENVIRONMENT: ${{ github.event.deployment.environment }}  # 从环境中获取环境变量
         run: |  # 运行多行命令
           mkdir -p ~/.ssh  # 创建 SSH 目录
