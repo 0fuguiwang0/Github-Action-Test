@@ -129,13 +129,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      image_tag: ${{ steps.build_image.outputs.image_tag }}
     steps:
       - name: Set Image Tag
         id: build_image
         run: |
           echo "image_tag=my-registry.com/myapp:dev" >> $GITHUB_OUTPUT
+    outputs:
+      image_tag: ${{ steps.build_image.outputs.image_tag }}
 
   test:
     needs: build
