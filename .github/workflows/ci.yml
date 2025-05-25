@@ -61,6 +61,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             IMAGE=${{ needs.build.outputs.image }}
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
             docker pull $IMAGE
             # 先停止并删除旧容器（容器名自己改）
             docker stop my-frontend || true
@@ -84,6 +85,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             IMAGE=${{ needs.build.outputs.image }}
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
             docker pull $IMAGE
             docker stop my-frontend || true
             docker rm my-frontend || true
@@ -106,6 +108,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             IMAGE=${{ needs.build.outputs.image }}
+            docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
             docker pull $IMAGE
             docker stop my-frontend || true
             docker rm my-frontend || true
