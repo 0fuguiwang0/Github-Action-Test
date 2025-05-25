@@ -4,18 +4,15 @@ on:
   pull_request:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  job1:
     outputs:
-      image_tag: ${{ steps.build_image.outputs.image_tag }}
+      output_name: ${{ steps.step_id.outputs.some_output }}
     steps:
-      - id: build_image
-        name: Set Image Tag
-        run: echo "image_tag=my-registry.com/myapp:dev" >> $GITHUB_OUTPUT
+      - id: step_id
+        run: echo "some_output=hello" >> $GITHUB_OUTPUT
 
-  test:
-    needs: build
-    runs-on: ubuntu-latest
+  job2:
+    needs: job1
     steps:
-      - name: Show Output
-        run: echo "Image is: ${{ needs.build.outputs.image_tag }}"
+      - run: echo "${{ needs.job1.outputs.output_name }}"
+
