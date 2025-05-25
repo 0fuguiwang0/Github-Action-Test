@@ -80,9 +80,9 @@ jobs:
       - name: SSH & 部署 UAT
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST_UAT }}
-          username: ${{ secrets.SSH_USER_UAT }}
-          key: ${{ secrets.SSH_KEY_UAT }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
           script: |
             IMAGE=${{ needs.build.outputs.image }}
             docker pull $IMAGE
@@ -102,9 +102,9 @@ jobs:
       - name: SSH & 部署 Prod
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ secrets.SSH_HOST_PROD }}
-          username: ${{ secrets.SSH_USER_PROD }}
-          key: ${{ secrets.SSH_KEY_PROD }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
           script: |
             IMAGE=${{ needs.build.outputs.image }}
             docker pull $IMAGE
