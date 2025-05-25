@@ -114,7 +114,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            IMAGE=${{ needs.build.outputs.image_tag }}
+            echo "Image is: $IMAGE"
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
             docker pull $IMAGE
             docker stop my-frontend || true
