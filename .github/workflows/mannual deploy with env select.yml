@@ -18,6 +18,9 @@ jobs:
     name: 🔨 Build, Push & Deploy to ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
 
+    # 关键：绑定到 GitHub Environment，用于环境变量隔离
+    environment: ${{ github.event.inputs.environment }}
+
     steps:
       - name: Checkout 源码
         uses: actions/checkout@v4
@@ -27,7 +30,7 @@ jobs:
         with:
           node-version: "18"
 
-      - name: 安装依赖 & 打包
+      - name: 安装依赖 & 构建
         run: |
           npm ci
           npm run build
@@ -50,7 +53,7 @@ jobs:
           docker push "$IMAGE_TAG"
           echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      - name: 部署到服务器
+      - name: SSH & 部署到服务器
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
