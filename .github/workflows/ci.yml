@@ -1,27 +1,33 @@
-name: Manual Deploy
+name: PR Build & Manual Deploy
 
-# ✅ 手动触发
 on:
-  workflow_dispatch:
+  pull_request:  # 自动构建（不自动部署）
+  workflow_dispatch:  # 手动点击按钮部署
     inputs:
       environment:
-        description: '选择部署环境'
+        description: "请选择部署环境"
         required: true
-        default: 'dev'
         type: choice
         options:
           - dev
           - uat
           - prod
+      image_tag:
+        description: "请输入要部署的镜像 TAG（例如：my-registry.com/ns/my-frontend:dev）"
+        required: true
 
 jobs:
+  # --------------------
+  # 自动构建部分
+  # --------------------
   build:
     name: 🔨 Build & Push Image
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     outputs:
-      image_tag: ${{ steps.set_output.outputs.image_tag }}
+      image_tag: ${{ steps.build_image.outputs.image_tag }}
     steps:
-      - name: Checkout 源码
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -29,12 +35,12 @@ jobs:
         with:
           node-version: "18"
 
-      - name: 安装依赖 & 打包
+      - name: 安装 & 构建
         run: |
           npm ci
           npm run build
 
-      - name: 登录镜像仓库
+      - name: Docker 登录
         uses: docker/login-action@v2
         with:
           registry: ${{ secrets.DOCKER_REGISTRY }}
@@ -42,40 +48,55 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: 构建并推送镜像
+        id: build_image
         run: |
-          ENV="${{ github.event.inputs.environment }}"
-          IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:$ENV"
-          docker build -t "$IMAGE" .
-          docker push "$IMAGE"
-          echo "IMAGE_TAG=$IMAGE" >> $GITHUB_ENV
+          TAG_NAME="${{ github.event.pull_request.base.ref }}"
+          SHA_TAG="${{ github.sha }}"
+          IMAGE_BASE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend"
+          IMAGE_SHA="$IMAGE_BASE:$SHA_TAG"
+          IMAGE_TAG="$IMAGE_BASE:$TAG_NAME"
 
-      - name: 设置输出
-        id: set_output
-        run: echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Building Docker image: $IMAGE_SHA"
+          docker build -t "$IMAGE_SHA" -t "$IMAGE_TAG" .
+          docker push "$IMAGE_SHA"
+          docker push "$IMAGE_TAG"
 
+          echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  # --------------------
+  # 手动部署部分
+  # --------------------
   deploy:
-    name: 🚀 部署到指定环境
-    needs: build
+    name: 🚀 Manual Deploy
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment }}
     steps:
-      - name: SSH & 部署
+      - name: SSH 部署
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            ENV="${{ github.event.inputs.environment }}"
-            PORT="8081"
-            if [ "$ENV" = "uat" ]; then PORT="8082"; fi
-            if [ "$ENV" = "dev" ]; then PORT="8083"; fi
-
-            IMAGE="${{ secrets.DOCKER_REGISTRY }}/${{ secrets.DOCKER_NAMESPACE }}/my-frontend:$ENV"
-            echo "Deploying $IMAGE to port $PORT"
+            IMAGE=${{ github.event.inputs.image_tag }}
+            ENV=${{ github.event.inputs.environment }}
+            echo "部署环境: $ENV"
+            echo "部署镜像: $IMAGE"
 
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
             docker pull $IMAGE
+
             docker stop my-frontend || true
             docker rm my-frontend || true
-            docker run -d --name my-frontend -p ${PORT}:${PORT} $IMAGE
+
+            # 设置端口
+            if [ "$ENV" = "dev" ]; then
+              PORT=8083
+            elif [ "$ENV" = "uat" ]; then
+              PORT=8082
+            else
+              PORT=8081
+            fi
+
+            docker run -d --name my-frontend -p $PORT:$PORT $IMAGE
