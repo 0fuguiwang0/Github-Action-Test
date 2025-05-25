@@ -20,7 +20,7 @@ export default {
   },
   methods: {
     showMessage() {
-      this.message = '你点击了按钮！';
+      this.message = '你点击了按钮！！！！';
     }
   }
 };
