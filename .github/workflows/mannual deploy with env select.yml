@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Select deployment environment'
+        description: '选择部署环境'
         required: true
-        default: 'dev'
         type: choice
+        default: 'dev'
         options:
           - dev
           - uat
@@ -17,6 +17,8 @@ jobs:
   build_and_deploy:
     name: 🔨 Build, Push & Deploy to ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
+
+    # 关键：绑定到 GitHub Environment，用于环境变量隔离
     environment: ${{ github.event.inputs.environment }}
 
     steps:
@@ -28,7 +30,7 @@ jobs:
         with:
           node-version: "18"
 
-      - name: 安装依赖 & 打包
+      - name: 安装依赖 & 构建
         run: |
           npm ci
           npm run build
