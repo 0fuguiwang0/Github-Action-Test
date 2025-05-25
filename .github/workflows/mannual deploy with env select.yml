@@ -18,10 +18,7 @@ jobs:
     name: 🔨 Build, Push & Deploy to ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
 
-<<<<<<< HEAD
     # 关键：绑定到 GitHub Environment，用于环境变量隔离
-=======
->>>>>>> dev
     environment: ${{ github.event.inputs.environment }}
 
     steps:
