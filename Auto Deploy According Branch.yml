@@ -62,7 +62,7 @@ jobs:
             docker pull $IMAGE
             docker stop my-frontend || true
             docker rm my-frontend || true
-            docker run -d --name my-frontend -p 8083:8083 $IMAGE
+            docker run -d --name my-frontend -p 8083:80 $IMAGE
 
   # 三、部署到 UAT
   deploy-uat:
@@ -85,7 +85,7 @@ jobs:
             docker pull $IMAGE
             docker stop my-frontend || true
             docker rm my-frontend || true
-            docker run -d --name my-frontend -p 8082:8082 $IMAGE
+            docker run -d --name my-frontend -p 8082:80 $IMAGE
 
   # 四、部署到 Prod
   deploy-prod:
@@ -108,4 +108,4 @@ jobs:
             docker pull $IMAGE
             docker stop my-frontend || true
             docker rm my-frontend || true
-            docker run -d --name my-frontend -p 8081:8081 $IMAGE
+            docker run -d --name my-frontend -p 8081:80 $IMAGE
