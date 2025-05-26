@@ -106,6 +106,6 @@ jobs:
             echo "Deploying Image: $IMAGE"
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
             docker pull $IMAGE
-            docker stop my-frontend || true
-            docker rm my-frontend || true
-            docker run -d --name my-frontend -p 8081:80 $IMAGE
+            docker stop my-frontend-${{ github.environment.name }} || true
+            docker rm my-frontend-${{ github.environment.name }} || true
+            docker run -d --name my-frontend-${{ github.environment.name }} -p 8081:80 $IMAGE
