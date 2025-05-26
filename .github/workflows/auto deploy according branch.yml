@@ -60,9 +60,9 @@ jobs:
             echo "Deploying Image: $IMAGE"
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
             docker pull $IMAGE
-            docker stop my-frontend || true
-            docker rm my-frontend || true
-            docker run -d --name my-frontend -p 8083:80 $IMAGE
+            docker stop my-frontend-dev || true
+            docker rm my-frontend-dev || true
+            docker run -d --name my-frontend-dev -p 8083:80 $IMAGE
 
   # 三、部署到 UAT
   deploy-uat:
@@ -83,9 +83,9 @@ jobs:
             echo "Deploying Image: $IMAGE"
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
             docker pull $IMAGE
-            docker stop my-frontend || true
-            docker rm my-frontend || true
-            docker run -d --name my-frontend -p 8082:80 $IMAGE
+            docker stop my-frontend-uat || true
+            docker rm my-frontend-uat || true
+            docker run -d --name my-frontend-uat -p 8082:80 $IMAGE
 
   # 四、部署到 Prod
   deploy-prod:
@@ -106,6 +106,6 @@ jobs:
             echo "Deploying Image: $IMAGE"
             docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} ${{ secrets.DOCKER_REGISTRY }}
             docker pull $IMAGE
-            docker stop my-frontend-${{ github.environment.name }} || true
-            docker rm my-frontend-${{ github.environment.name }} || true
-            docker run -d --name my-frontend-${{ github.environment.name }} -p 8081:80 $IMAGE
+            docker stop my-frontend-prod || true
+            docker rm my-frontend-prod || true
+            docker run -d --name my-frontend-prod -p 8081:80 $IMAGE
